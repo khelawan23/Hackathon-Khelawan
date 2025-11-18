@@ -9,7 +9,7 @@ import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { fetchUserStats, fetchUserPosts, fetchUserProfile, fetchUserPostsById } from '@/lib/api/posts';
 import { followUser, unfollowUser, getFollowStatus } from '@/lib/api/follow';
 import { Edit, Mail, Calendar, MapPin, RefreshCw, UserPlus, UserMinus, MessageCircle, Heart } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import type { Post } from '@/lib/types';
 import { useSearchParams } from 'next/navigation';
 
@@ -22,7 +22,7 @@ interface UserStats {
   createdAt: string;
 }
 
-export default function ProfilePage() {
+function ProfileContent() {
   const { user, token } = useAuthContext();
   const searchParams = useSearchParams();
   const profileUserId = searchParams.get('userId'); // If viewing another user's profile
@@ -454,5 +454,29 @@ export default function ProfilePage() {
       </div>
     </div>
     </div>
+  );
+}
+
+export default function ProfilePage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+        <div className="container mx-auto px-4 py-8">
+          <div className="max-w-4xl mx-auto space-y-8">
+            <Card className="gradient-card rounded-2xl p-8 shadow-xl">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Skeleton className="h-8 w-48 mb-2" />
+                  <Skeleton className="h-4 w-64" />
+                </div>
+                <Skeleton className="h-10 w-24" />
+              </div>
+            </Card>
+          </div>
+        </div>
+      </div>
+    }>
+      <ProfileContent />
+    </Suspense>
   );
 }
