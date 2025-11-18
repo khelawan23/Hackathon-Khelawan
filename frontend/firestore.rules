@@ -1,0 +1,70 @@
+/**
+ * @file Firebase Security Rules for WhisperNet
+ * @version Prototyping Mode - Data shape is not strictly validated.
+ *
+ * @description This ruleset enforces a user-ownership model for user profiles
+ * and allows public read access to posts while restricting post creation to authenticated users.
+ *
+ * @dataStructure
+ * - /users/{userId}: Stores user profile data. Each user can only read/write their own document.
+ * - /posts/{postId}: Stores posts. All users can read any post. Only authenticated users can create posts.
+ *
+ * @keySecurityDecisions
+ * - Users can only read and write their own profile data.
+ * - Posts are publicly readable.
+ * - Only authenticated users can create posts.
+ * - No user can update or delete existing posts.
+ * - The rules avoid the use of `get()` calls for authorization.
+ * - Rules are not filters.
+ */
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /**
+     * @description Secures user profile data. Users can only read/write their own document.
+     * @path /users/{userId}
+     * @allow (create) - Authenticated user creates their own profile: request.auth.uid == 'user_abc' and request.resource.data.id == 'user_abc'
+     * @allow (get, list, update, delete) - Authenticated user accesses their own profile: request.auth.uid == 'user_abc' and userId == 'user_abc'
+     * @deny (create) - Authenticated user tries to create another user's profile: request.auth.uid == 'user_abc' and request.resource.data.id == 'other_user'
+     * @deny (get, list, update, delete) - Authenticated user tries to access another user's profile: request.auth.uid == 'user_abc' and userId == 'other_user'
+     * @principle Enforces document ownership for user profiles.
+     */
+    match /users/{userId} {
+      //function isOwner(userId) {
+      //    return request.auth != null && request.auth.uid == userId;
+      //}
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+      }
+
+      allow get: if isOwner(userId);
+      allow list: if false; //No need to list all users
+      allow create: if isOwner(userId) && request.resource.data.id == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Manages access to posts. All users can read any post. Only authenticated users can create posts.
+     * @path /posts/{postId}
+     * @allow (get, list) - Any user can read any post.
+     * @allow (create) - Authenticated user creates a new post: request.auth.uid != null
+     * @deny (update, delete) - No user can update or delete existing posts.
+     * @principle Allows public read access to posts while restricting post creation to authenticated users.
+     */
+    match /posts/{postId} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
+      allow get, list: if true;
+      allow create: if isSignedIn();
+      allow update: if false;
+      allow delete: if false;
+    }
+  }
+}
